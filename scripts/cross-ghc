@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+
+defaultToolchainWrapperPath="/usr/local/lib/toolchain-wrapper"
+defaultLlvmPath="/usr/local/opt/llvm/bin"
+defaultLibffiPath="/usr/local/opt/libffi/lib"
+crossGhcDistributionPath="/usr/local/lib/cross-ghc"
+
+# Distribution specific information.
+ghcVersion="ghc-8.3.20171020"
+commitHash="aa5f532d20"
+
+validTargetList="{ios-sim[ulator]|ios|android|android-32|raspberry|macos}"
+
+# Print command line help information.
+function helpInformation() {
+  echo "Usage: cross-ghc <command> [target]"
+  echo ""
+  echo "For building to a target:"
+  echo "    cross-ghc $validTargetList [ghc-options] <file>"
+  echo "    cross-ghc static $validTargetList [ghc-options] <file>"
+  echo ""
+  echo "the last one adds the -staticlib flag, and other things, to produce"
+  echo "a static archive in 'hs-libs/<architecture>/libhs.a'."
+  echo ""
+  echo "Specifically for building a universal library for iOS:"
+  echo "    cross-ghc universal [ghc-options] <file>"
+  echo ""
+  echo "Which builds cross-ghc static ios|ios-sim and then combines the libraries with"
+  echo "libo after resulting in a universal library at hs-libs/libhs.a."
+  echo ""
+  echo "For compiling the ghc binaries:"
+  echo "    cross-ghc build-ghc $validTargetList"
+  echo ""
+  echo "Finally, for managing the toolchain-wrapper:"
+  echo "    cross-ghc get-toolchain"
+  echo "    cross-ghc update-toolchain"
+  echo ""
+  echo "By default the toolchain-wrapper path is set to '/usr/local/lib/toolchain-wrapper',"
+  echo "you can override this by setting \$ghcCrossToolchainPath, and similarly LLVM5,"
+  echo "which is set to '/usr/local/opt/llvm/bin' can be overridden by setting"
+  echo "\$ghcCrossLLVMPath."
+  echo ""
+  echo "Note that it is assumed that LLVM5 is already installed. If not, you can install"
+  echo "it on macOS via 'brew install llvm'. On other systems, consult you package manager."
+  echo ""
+  echo "cross-ghc also assumes libffi is set up. If not, you can install it on macOS via"
+  echo "'brew install libffi'. On other systems, consult your package manager."
+  echo ""
+}
+
+# Set the host configure parameter.
+function ensureHostIsSet() {
+  # Get the platform information.
+  platform='unknown'
+  unameStr=`uname`
+  if [[ "$unameStr" == 'Linux' ]]; then
+    platform='unknown-linux'
+  elif [[ "$unameStr" == 'Darwin' ]]; then
+    platform='apple-darwin'
+  fi
+
+  # Get the architecture information.
+  machineType='unknown'
+  machineStr=`uname -m`
+  if [[ "$machineStr" == 'x86_64' ]]; then
+    machineType='x86_64'
+  elif [[ "$machineStr" == 'arm' ]]; then
+    machineType='arm'
+  fi
+  hostConfigure="$machineType-$platform"
+}
+
+# Set the path to the toolchain-wrapper.
+function ensureToolChainPath() {
+  if [ -n "$ghcCrossToolchainPath" ]; then
+    toolchainWrapperPath="$ghcCrossToolchainPath"
+    if [ ! -d "$toolchainWrapperPath" ]; then
+       >&2 echo "Nothing found at $toolchainWrapperPath, which was specificed as the path to the toolchain-wrapper! Please make sure that the toolchain is setup, e.g. by running 'cross-ghc get-toolchain'."
+       exit 1
+    fi
+  elif [ -d "$defaultToolchainWrapperPath" ]; then
+    toolchainWrapperPath=$defaultToolchainWrapperPath
+  else
+     >&2 echo "Could not find toolchain-wrapper at $defaultToolchainWrapperPath, and an alternative path was not defined in \$ghcCrossToolchainPath."
+    exit 1
+  fi
+}
+
+# Set the path to the LLVM5.
+function ensureLlvmPath() {
+  if [ -n "$ghcCrossLLVMPath" ]; then
+    llvmPath="$ghcCrossLLVMPath"
+    if [ ! -d "$llvmPath" ]; then
+       >&2 echo "Nothing found at $llvmPath, which was specificed as the path to LLVM5! Please make sure LLVM is installed."
+       exit 1
+    fi
+  elif [ -d "$defaultLlvmPath" ]; then
+    llvmPath=$defaultLlvmPath
+  else
+     >&2 echo "Could not find LLVM5 at $defaultLlvmPath, and an alternative path was not defined in \$ghcCrossLlvmPath."
+    exit 1
+  fi
+}
+
+# Set the path to the LLVM5.
+function ensureLibffiPath() {
+  if [ -n "$ghcCrossLibffiPath" ]; then
+    libffiPath="$ghcCrossLibffiPath"
+    if [ ! -d "$llvmPath" ]; then
+       >&2 echo "Nothing found at $libffiPath, which was specificed as the path to libffi! Please make sure libffi is installed."
+       exit 1
+    fi
+  elif [ -d "$defaultLibffiPath" ]; then
+    libffiPath=$defaultLibffiPath
+  else
+     >&2 echo "Could not find libffi at $defaultLibffiPath, and an alternative path was not defined in \$ghcCrossLibffiPath."
+    exit 1
+  fi
+}
+
+function ensureGhcOnPath() {
+  if [ ! $(which $targetPrefix-ghc) ]; then
+    >&2 echo "Could not find $targetPrefix-ghc on path! Are you sure you have"
+    >&2 echo "built the GHC binaries for this distribution? See 'cross-ghc help'"
+    >&2 echo "for more information."
+    >&2 echo ""
+    exit 1
+  fi
+}
+
+
+# Build GHC binaries for a specific target.
+function buildGhcBinaries() {
+  echo "Starting process to build the GHC for the target platform."
+  echo ""
+  # Make sure the distribution exists and then configure/build it.
+  getBinaryDistruibution \
+    && (cd $crossGhcDistributionPath/ghc-$targetPrefix && buildAndConfigureDistribution)
+}
+
+function getBinaryDistruibution() {
+  if [ ! -d "$crossGhcDistributionPath/ghc-$targetPrefix" ]; then
+    # Download the distribution, unzip and untar it, and then finally configure
+    # and build the GHC binaries.
+    echo "Choosing distribution: $ghcDistribution"
+    echo ""
+    mkdir -p $crossGhcDistributionPath \
+      && curl -o $crossGhcDistributionPath/ghc-$targetPrefix.tar.xz \
+         -O -L -C - $ghcDistribution \
+         --retry 20 \
+      && gunzip -c $crossGhcDistributionPath/ghc-$targetPrefix.tar.xz > $crossGhcDistributionPath/ghc-$targetPrefix.tar \
+      && tar xf $crossGhcDistributionPath/ghc-$targetPrefix.tar -C $crossGhcDistributionPath \
+      && mv $crossGhcDistributionPath/$ghcVersion $crossGhcDistributionPath/ghc-$targetPrefix \
+      && echo "Downloaded and unpacked distribution to $crossGhcDistributionPath/ghc-$targetPrefix" \
+      && echo ""
+  else
+    echo "Using existing GHC distribution for $target."
+    echo ""
+  fi
+}
+
+function buildAndConfigureDistribution() {
+  export PATH="$toolchainWrapperPath:$llvmPath:$PATH"
+  ./configure \
+    --prefix=$crossGhcDistributionPath/ghc-$targetPrefix \
+    --target=$targetPrefix \
+    --host=$hostConfigure \
+    --build=$hostConfigure \
+    && make install \
+    && echo "" \
+    && echo "Finished building $targetPrefix-ghc." \
+    && echo ""
+}
+
+function getToolchain() {
+  # We manually set the path here, because `ensureToolChainPath` requires
+  # that the path exists in advance.
+  toolchainWrapperPath=$defaultToolchainWrapperPath
+  if [ -n "$ghcCrossToolchainPath" ]; then
+    toolchainWrapperPath="$ghcCrossToolchainPath"
+  fi
+  echo "Cloning down the toolchain-wrapper into $toolchainWrapperPath."
+  echo ""
+  git clone https://github.com/zw3rk/toolchain-wrapper.git $toolchainWrapperPath
+  echo ""
+  echo "Running ./bootstrap"
+  (cd $toolchainWrapperPath && exec $toolchainWrapperPath/bootstrap)
+  echo ""
+  echo "Finished setting up toolchain"
+  echo ""
+}
+
+function updateToolchain() {
+  echo "Updating toolchain-wrapper."
+  echo ""
+  git -C $toolchainWrapperPath pull origin master
+  echo ""
+  echo "Re-running ./bootstrap"
+  (cd $toolchainWrapperPath && exec $toolchainWrapperPath/bootstrap)
+  echo ""
+  echo "Finished setting up toolchain"
+  echo ""
+}
+
+# Translate the target into its target string.
+function getTarget() {
+  target=$1
+  case "$target" in
+    ios-simulator|ios-sim)
+      targetPrefix="x86_64-apple-ios"
+      targetBuildArch="x86_64"
+      ;;
+    ios)
+      targetPrefix="aarch64-apple-ios"
+      targetBuildArch="arm64"
+      ;;
+    macos)
+      targetPrefix="x86_64-apple-darwin"
+      targetBuildArch="x86_64"
+      ;;
+    android)
+      targetPrefix="aarch64-unknown-linux-android"
+      targetBuildArch="arm64"
+      ;;
+    android-32)
+      targetPrefix="arm-unknown-linux-android"
+      targetBuildArch="arm64"
+      ;;
+    raspberry)
+      targetPrefix="arm-unknown-linux"
+      targetBuildArch="arm64"
+      ;;
+    *)
+      >&2 echo "Invalid target!"
+      >&2 echo ""
+      echo "Valid targets are:"
+      echo "    $validTargetList"
+      echo ""
+      echo "See 'cross-ghc help' for more information."
+      echo ""
+      exit 1
+  esac
+  ghcDistribution="http://hackage.mobilehaskell.org/$hostConfigure/$commitHash/$ghcVersion-$targetPrefix.tar.xz"
+}
+
+
+# Handle command line arguments.
+case "$1" in
+  ios-simulator|ios-sim|ios|android|android-32|raspberry|macos)
+    ensureHostIsSet
+    getTarget $1
+    ensureToolChainPath
+    ensureLlvmPath
+    export PATH="$toolchainWrapperPath:$llvmPath:/usr/local/lib/cross-ghc/ghc-$targetPrefix/bin:$PATH"
+    ensureGhcOnPath
+    $targetPrefix-ghc ${@:2}
+    ;;
+  static)
+    ensureHostIsSet
+    getTarget $2
+    ensureToolChainPath
+    ensureLlvmPath
+    ensureLibffiPath
+    export PATH="$toolchainWrapperPath:$llvmPath:/usr/local/lib/cross-ghc/ghc-$targetPrefix/bin:$PATH"
+    ensureGhcOnPath
+    mkdir -p hs-libs/$targetBuildArch
+    mkdir -p hs-libs/build-artifacts/$targetBuildArch
+    $targetPrefix-ghc -lffi -L$libffiPath \
+                      -staticlib \
+                      -odir hs-libs/build-artifacts/$targetBuildArch \
+                      -hidir hs-libs/build-artifacts/$targetBuildArch \
+                      -o hs-libs/$targetBuildArch/libhs.a \
+                      ${@:3}
+    ;;
+  universal)
+    cross-ghc static ios ${@:2} \
+      && cross-ghc static ios-sim ${@:2} \
+      && lipo -create -output hs-libs/libhs.a \
+              hs-libs/arm64/libhs.a hs-libs/x86_64/libhs.a \
+      && echo "Created universal library in hs-libs/libhs.a." && echo ""
+    ;;
+  build-ghc)
+    ensureHostIsSet
+    getTarget $2
+    ensureToolChainPath
+    ensureLlvmPath
+    ensureHostIsSet
+    buildGhcBinaries
+    ;;
+  get-toolchain)
+    getToolchain
+    ;;
+  update-toolchain)
+    ensureToolChainPath
+    updateToolchain
+    ;;
+  -h|--help|help)
+    helpInformation
+    ;;
+  *)
+    >&2 echo "Invalid command!"
+    >&2 echo ""
+    helpInformation
+    exit 1
+esac
