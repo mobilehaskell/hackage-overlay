@@ -26,10 +26,10 @@ function helpInformation() {
   echo "    cross-ghc universal [ghc-options] <file>"
   echo ""
   echo "Which builds cross-ghc static ios|ios-sim and then combines the libraries with"
-  echo "libo after resulting in a universal library at hs-libs/libhs.a."
+  echo "lipo after resulting in a universal library at hs-libs/libhs.a."
   echo ""
   echo "For compiling the ghc binaries:"
-  echo "    cross-ghc build-ghc $validTargetList"
+  echo "    cross-ghc setup-ghc $validTargetList"
   echo ""
   echo "Finally, for managing the toolchain-wrapper:"
   echo "    cross-ghc get-toolchain"
@@ -130,12 +130,12 @@ function ensureGhcOnPath() {
 
 
 # Build GHC binaries for a specific target.
-function buildGhcBinaries() {
+function setupGhcBinaries() {
   echo "Starting process to build the GHC for the target platform."
   echo ""
   # Make sure the distribution exists and then configure/build it.
   getBinaryDistruibution \
-    && (cd $crossGhcDistributionPath/ghc-$targetPrefix && buildAndConfigureDistribution)
+    && (cd $crossGhcDistributionPath/ghc-$targetPrefix && configureAndMakeDistribution)
 }
 
 function getBinaryDistruibution() {
@@ -151,7 +151,7 @@ function getBinaryDistruibution() {
       && gunzip -c $crossGhcDistributionPath/ghc-$targetPrefix.tar.xz > $crossGhcDistributionPath/ghc-$targetPrefix.tar \
       && tar xf $crossGhcDistributionPath/ghc-$targetPrefix.tar -C $crossGhcDistributionPath \
       && mv $crossGhcDistributionPath/$ghcVersion $crossGhcDistributionPath/ghc-$targetPrefix \
-      && echo "Downloaded and unpacked distribution to $crossGhcDistributionPath/ghc-$targetPrefix" \
+      && echo "Downloaded and unpacking distribution to $crossGhcDistributionPath/ghc-$targetPrefix" \
       && echo ""
   else
     echo "Using existing GHC distribution for $target."
@@ -159,7 +159,7 @@ function getBinaryDistruibution() {
   fi
 }
 
-function buildAndConfigureDistribution() {
+function configureAndMakeDistribution() {
   export PATH="$toolchainWrapperPath:$llvmPath:$PATH"
   ./configure \
     --prefix=$crossGhcDistributionPath/ghc-$targetPrefix \
@@ -168,7 +168,7 @@ function buildAndConfigureDistribution() {
     --build=$hostConfigure \
     && make install \
     && echo "" \
-    && echo "Finished building $targetPrefix-ghc." \
+    && echo "Finished setting up $targetPrefix-ghc." \
     && echo ""
 }
 
@@ -220,15 +220,15 @@ function getTarget() {
       ;;
     android)
       targetPrefix="aarch64-unknown-linux-android"
-      targetBuildArch="arm64"
+      targetBuildArch="arm64-v8a"
       ;;
     android-32)
-      targetPrefix="arm-unknown-linux-android"
-      targetBuildArch="arm64"
+      targetPrefix="armv7-linux-androideabi"
+      targetBuildArch="armv7a"
       ;;
     raspberry)
-      targetPrefix="arm-unknown-linux"
-      targetBuildArch="arm64"
+      targetPrefix="arm-linux-gnueabihf"
+      targetBuildArch="armv6"
       ;;
     *)
       >&2 echo "Invalid target!"
@@ -279,13 +279,13 @@ case "$1" in
               hs-libs/arm64/libhs.a hs-libs/x86_64/libhs.a \
       && echo "Created universal library in hs-libs/libhs.a." && echo ""
     ;;
-  build-ghc)
+  setup-ghc)
     ensureHostIsSet
     getTarget $2
     ensureToolChainPath
     ensureLlvmPath
     ensureHostIsSet
-    buildGhcBinaries
+    setupGhcBinaries
     ;;
   get-toolchain)
     getToolchain
