@@ -1,0 +1,1 @@
+{ name : Text, prefix : Text, items : List ./Item.dhall }

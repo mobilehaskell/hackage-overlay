@@ -1,0 +1,13 @@
+let host = "http://releases.mobilehaskell.org"
+in let concatMap = https://ipfs.io/ipfs/QmRHdo2Jg59EZUT8Toq7MCZFN6e7wNbBtvaF7HCTrDFPxG/Prelude/Text/concatMap
+in \(record : List ./Section.dhall) ->
+concatMap ./Section.dhall (\(section : ./Section.dhall) ->
+let items = concatMap ./Item.dhall (\(item : ./Item.dhall) ->
+let url = ''${host}/${section.prefix}/${item.file}'' in
+''
+<li><a href="${url}">${item.file}</a>(<a href="${url}.sig">.sig</a>) - ${item.desc}</li>
+'') section.items in ''
+<h3>${section.name}</h3>
+<ul>${items}</ul>
+'') record
+
