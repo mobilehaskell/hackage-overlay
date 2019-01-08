@@ -1,0 +1,12 @@
+diff -ru http-api-data-0.4/http-api-data.cabal http-api-data-0.4-patched/http-api-data.cabal
+--- http-api-data-0.4/http-api-data.cabal	2001-09-09 09:46:40.000000000 +0800
++++ http-api-data-0.4-patched/http-api-data.cabal	2019-01-07 15:11:33.000000000 +0800
+@@ -15,7 +15,7 @@
+ maintainer:      Nickolay Kudasov <nickolay.kudasov@gmail.com>
+ homepage:        http://github.com/fizruk/http-api-data
+ stability:       unstable
+-build-type:      Custom
++build-type:      Simple
+ 
+ extra-source-files:
+   include/overlapping-compat.h
