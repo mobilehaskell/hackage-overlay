@@ -1,0 +1,40 @@
+diff -ru jsaddle-0.9.5.0/jsaddle.cabal jsaddle-0.9.5.0-patched/jsaddle.cabal
+--- jsaddle-0.9.5.0/jsaddle.cabal	2018-06-30 22:30:10.000000000 +0800
++++ jsaddle-0.9.5.0-patched/jsaddle.cabal	2019-01-08 10:10:21.000000000 +0800
+@@ -1,5 +1,6 @@
+ name: jsaddle
+ version: 0.9.5.0
++x-revision: 1
+ cabal-version: >=1.10
+ build-type: Simple
+ license: MIT
+@@ -108,7 +109,7 @@
+         Language.Javascript.JSaddle.Types
+     build-depends:
+         aeson >=0.8.0.2 && <1.3,
+-        base <5,
++        base >= 4.9 && <5,
+         base64-bytestring >=1.0.0.1 && <1.1,
+         bytestring >=0.10.6.0 && <0.11,
+         exceptions >=0.8 && <0.9,
+diff -ru jsaddle-0.9.5.0/src/Language/Javascript/JSaddle/Types.hs jsaddle-0.9.5.0-patched/src/Language/Javascript/JSaddle/Types.hs
+--- jsaddle-0.9.5.0/src/Language/Javascript/JSaddle/Types.hs	2018-06-30 22:30:10.000000000 +0800
++++ jsaddle-0.9.5.0-patched/src/Language/Javascript/JSaddle/Types.hs	2019-01-07 14:56:33.000000000 +0800
+@@ -110,6 +110,7 @@
+ import Control.Monad.Trans.Writer.Lazy as Lazy (WriterT(..))
+ import Control.Monad.Trans.Writer.Strict as Strict (WriterT(..))
+ import Control.Monad.Trans.Class (MonadTrans(..))
++import Control.Monad.Fail (MonadFail(..))
+ import Control.Monad.Fix (MonadFix)
+ import Control.Monad.Ref (MonadAtomicRef(..), MonadRef(..))
+ import Control.Concurrent.STM.TVar (TVar)
+@@ -179,6 +180,9 @@
+       where q :: (ReaderT JSContextRef IO a -> ReaderT JSContextRef IO a) -> JSM a -> JSM a
+             q unmask (JSM b) = syncAfter . JSM $ unmask b
+ 
++instance MonadFail JSM where
++  fail = error
++
+ #endif
+ 
+ -- | Forces execution of pending asyncronous code
