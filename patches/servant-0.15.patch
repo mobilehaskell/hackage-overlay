@@ -1,0 +1,12 @@
+diff -ru servant-0.15/servant.cabal servant-0.15-patched/servant.cabal
+--- servant-0.15/servant.cabal	2001-09-09 09:46:40.000000000 +0800
++++ servant-0.15-patched/servant.cabal	2019-01-07 15:18:55.000000000 +0800
+@@ -18,7 +18,7 @@
+ author:              Servant Contributors
+ maintainer:          haskell-servant-maintainers@googlegroups.com
+ copyright:           2014-2016 Zalora South East Asia Pte Ltd, 2016-2018 Servant Contributors
+-build-type:          Custom
++build-type:          Simple
+ 
+ tested-with:
+   GHC ==8.0.2
