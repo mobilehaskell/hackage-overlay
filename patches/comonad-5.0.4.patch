@@ -1,0 +1,12 @@
+diff -ru comonad-5.0.4/comonad.cabal comonad-5.0.4-patched/comonad.cabal
+--- comonad-5.0.4/comonad.cabal	2018-07-02 05:24:59.000000000 +0800
++++ comonad-5.0.4-patched/comonad.cabal	2019-01-07 14:57:25.000000000 +0800
+@@ -13,7 +13,7 @@
+                Copyright (C) 2004-2008 Dave Menendez
+ synopsis:      Comonads
+ description:   Comonads.
+-build-type:    Custom
++build-type:    Simple
+ tested-with:   GHC == 7.0.4, GHC == 7.2.2, GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3, GHC == 8.6.1
+ extra-source-files:
+   .ghci
