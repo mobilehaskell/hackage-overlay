@@ -1,0 +1,12 @@
+diff -ru semigroupoids-5.3.2/semigroupoids.cabal semigroupoids-5.3.2-patched/semigroupoids.cabal
+--- semigroupoids-5.3.2/semigroupoids.cabal	2001-09-09 09:46:40.000000000 +0800
++++ semigroupoids-5.3.2-patched/semigroupoids.cabal	2019-01-08 10:44:35.000000000 +0800
+@@ -20,7 +20,7 @@
+              , GHC == 8.2.2
+              , GHC == 8.4.4
+              , GHC == 8.6.3
+-build-type:    Custom
++build-type:    Simple
+ synopsis:      Semigroupoids: Category sans id
+ extra-source-files:
+   .travis.yml
