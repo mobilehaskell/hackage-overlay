@@ -1,0 +1,12 @@
+diff -ru distributive-0.6/distributive.cabal distributive-0.6-patched/distributive.cabal
+--- distributive-0.6/distributive.cabal	2018-07-03 06:26:04.000000000 +0800
++++ distributive-0.6-patched/distributive.cabal	2019-01-07 14:56:25.000000000 +0800
+@@ -12,7 +12,7 @@
+ copyright:     Copyright (C) 2011-2016 Edward A. Kmett
+ synopsis:      Distributive functors -- Dual to Traversable
+ description:   Distributive functors -- Dual to @Traversable@
+-build-type:    Custom
++build-type:    Simple
+ tested-with:   GHC == 7.0.4
+              , GHC == 7.2.2
+              , GHC == 7.4.2
